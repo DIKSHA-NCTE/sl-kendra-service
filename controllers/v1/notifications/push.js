@@ -59,7 +59,6 @@ module.exports = class PushNotifications {
 
     async registerDevice(req) {
         return new Promise(async (resolve, reject) => {
-
             try {
 
                 let deviceData = {
@@ -78,7 +77,7 @@ module.exports = class PushNotifications {
 
                     response["result"] = {};
 
-                    let topicArray = ["allUsers", "all-" + deviceData.app + "-users", "all-" + deviceData.app + "-" + deviceData.os + "-users"];
+                    let topicArray = ["allUsers", "all-" + deviceData.app.trim() + "-users", "all-" + deviceData.app.trim() + "-" + deviceData.os.trim() + "-users"];
 
                     await Promise.all(topicArray.map(async topicName => {
 
