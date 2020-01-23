@@ -426,7 +426,7 @@ module.exports = class InAppNotificationsHelper {
             try {
 
                 let getAllDevices = 
-                await userExtensionHelper.profileWithEntityDetails({
+                await userExtensionHelper.userExtensionDocument({
                     userId: userId,
                     status: "active",
                     isDeleted: false
@@ -465,7 +465,7 @@ module.exports = class InAppNotificationsHelper {
                     let pushedData = 
                     await pushNotificationsHelper.createNotificationInAndroid(notificationDataToBeSent);
 
-                    if (!pushedData.status) {
+                    if ( !pushedData.status ) {
 
                         let errorObject = {
                             slackErrorName: gen.utils.checkIfEnvDataExistsOrNot("SLACK_ERROR_NAME"),
