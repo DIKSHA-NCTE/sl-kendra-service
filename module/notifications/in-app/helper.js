@@ -225,7 +225,7 @@ module.exports = class InAppNotificationsHelper {
                         },
                         title: "Pending Assessment!",
                         text: "You have a Pending Assessment",
-                        appName: "samiksha"
+                        appName: process.env.SAMIKSHA_NOTIFICATIONS_NAME
                     };
 
                     if (observation) {
@@ -337,7 +337,7 @@ module.exports = class InAppNotificationsHelper {
                         title: "Congratulations!",
                         type: "Information",
                         "created_at": new Date(),
-                        appName: "samiksha"
+                        appName: process.env.SAMIKSHA_NOTIFICATIONS_NAME
                     };
 
                     if (observation) {
