@@ -83,12 +83,14 @@ let getDownloadableUrl = function (filePath, containerName) {
 
     try {
 
+      let expiryDate = 86400 * 30 * 12;
+
       let sasToken = generateBlobSASQueryParameters({
         containerName: containerName,
         blobName: filePath,
         permissions: BlobSASPermissions.parse("rw"),
         startsOn: new Date(),
-        expiresOn: new Date(new Date().valueOf() + process.env.AZURE_LINK_EXPIRY_TIME)
+        expiresOn: new Date(new Date().valueOf() + expiryDate)
       },
         blobServiceClient.credential
       ).toString();
