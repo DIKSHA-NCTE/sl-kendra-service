@@ -154,7 +154,7 @@ db_connect(configuration);
 
 kafka_connect(configuration);
 
-// elasticsearch_connect(configuration);
+elasticsearch_connect(configuration);
 
 smtp_connect(configuration.smtpConfig);
 
