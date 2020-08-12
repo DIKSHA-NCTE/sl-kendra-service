@@ -150,12 +150,11 @@ const configuration = {
 
 db_connect(configuration);
 
-// Cassandra connect not required.
 // cassandra_connect(configuration.db.connection.cassandra);
 
 kafka_connect(configuration);
 
-elasticsearch_connect(configuration);
+// elasticsearch_connect(configuration);
 
 smtp_connect(configuration.smtpConfig);
 
