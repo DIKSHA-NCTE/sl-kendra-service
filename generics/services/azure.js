@@ -78,27 +78,23 @@ let uploadFile = async function (file, fileName, containerName) {
 */
 
 let getDownloadableUrl = function (filePath, containerName) {
-
   return new Promise(async (resolve, reject) => {
-
     try {
-
       let sasToken = generateBlobSASQueryParameters({
         containerName: containerName,
         blobName: filePath,
         permissions: BlobSASPermissions.parse("rw"),
         startsOn: new Date(),
-        expiresOn: new Date(new Date().valueOf() + process.env.AZURE_LINK_EXPIRY_TIME)
+        expiresOn: new Date(new Date().setSeconds(new Date().getSeconds() + 31536600))
       },
         blobServiceClient.credential
       ).toString();
-
-      return resolve(containerClient.url + "/" + filePath + "?" + sasToken);
-
+      
+      return resolve(containerClient.url + "/" + filePath + '?' + sasToken);
     } catch (error) {
+      console.log(error);
       return reject(error);
     }
-
   });
 }
 

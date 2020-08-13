@@ -149,7 +149,8 @@ const configuration = {
 };
 
 db_connect(configuration);
-cassandra_connect(configuration.db.connection.cassandra);
+
+// cassandra_connect(configuration.db.connection.cassandra);
 
 kafka_connect(configuration);
 
