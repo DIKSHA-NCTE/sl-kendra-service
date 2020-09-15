@@ -123,15 +123,13 @@ let signedUrl = ( fileName ,containerName ) => {
       
       let startDate = new Date();
       startDate.setMinutes(startDate.getMinutes() - 5);
-      let expiryDate = new Date(startDate);
-      expiryDate.setMinutes(startDate.getMinutes() + constants.common.NO_OF_EXPIRY_TIME);
 
       let sasToken = generateBlobSASQueryParameters({
         containerName : containerName,
         blobName : fileName,
         permissions: BlobSASPermissions.parse("w"),
         startsOn: startDate,
-        expiresOn: expiryDate,
+        expiresOn: new Date(new Date().setSeconds(new Date().getSeconds() + 31536600)),
       },blobServiceClient.credential
       ).toString();
 
