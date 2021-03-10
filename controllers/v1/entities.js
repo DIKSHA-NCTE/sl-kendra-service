@@ -501,6 +501,61 @@ module.exports = class Entities extends Abstract {
       }
     })
   }
+
+
+    /**
+    * @api {get} /kendra/api/v1/entities/subEntityListBasedOnRoleAndLocation/:locationId?role=:role
+    * Get list of sub entity based on role and location.
+    * @apiVersion 1.0.0
+    * @apiGroup Entities
+    * @apiHeader {String} X-authenticated-user-token Authenticity token
+    * @apiSampleRequest /kendra/api/v1/entities/subEntityListBasedOnRoleAndLocation/236f5cff-c9af-4366-b0b6-253a1789766a?role=DEO
+    * @apiUse successBody
+    * @apiUse errorBody
+    * @apiParamExample {json} Response:
+    * {
+    "message": "",
+    "status": 200,
+    "result": [
+        "district",
+        "block",
+        "cluster",
+        "school"
+    ]
+  }
+    */
+
+    /**
+   * Entities child hierarchy path
+   * @method
+   * @name subEntitiesRoles
+   * @param {String} req.params._id - entityId.         
+   * @returns {JSON} - Entities child hierarchy path
+   */
+
+  subEntityListBasedOnRoleAndLocation(req) {
+    return new Promise(async (resolve, reject) => {
+
+      try {
+
+        const subEntityTypeListData = 
+        await entitiesHelper.subEntityTypeList(req.params._id);
+       
+        resolve(subEntityTypeListData);
+
+      } catch (error) {
+
+        return reject({
+          status:
+            error.status ||
+            httpStatusCode["internal_server_error"].status,
+
+          message:
+            error.message ||
+            httpStatusCode["internal_server_error"].message
+        });
+      }
+    });
+  }
   
 };
-

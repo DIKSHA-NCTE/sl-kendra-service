@@ -6,15 +6,19 @@
  */
 
 require("dotenv").config();
+
+//express
+const express = require("express");
+let app = express();
+
+// Health check
+require("./healthCheck")(app);
+
 global.config = require("./config");
 require("./config/globals")();
 require("./generics/scheduler");
 
 let router = require("./routes");
-
-//express
-const express = require("express");
-let app = express();
 
 //required modules
 const fileUpload = require("express-fileupload");

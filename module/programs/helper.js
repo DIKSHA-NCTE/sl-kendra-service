@@ -5,6 +5,12 @@
  * Description : Programs related helper functionality.
  */
 
+// Dependencies 
+
+const entityTypesHelper = require(MODULES_BASE_PATH + "/entityTypes/helper");
+const entitiesHelper = require(MODULES_BASE_PATH + "/entities/helper");
+const userRolesHelper = require(MODULES_BASE_PATH + "/user-roles/helper");
+
 /**
     * ProgramsHelper
     * @class
@@ -71,7 +77,7 @@ module.exports = class ProgramsHelper {
     return new Promise(async (resolve, reject) => {
 
       try {
-
+        
         let programData = {
           "externalId" : data.externalId,
           "name" : data.name,
@@ -105,12 +111,31 @@ module.exports = class ProgramsHelper {
           programData
         );
 
+        if( !program._id ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_CREATED
+          };
+        }
+
+        if( data.scope ) {
+          
+          let programScopeUpdated = await this.setScope(
+            program._id,
+            data.scope
+          );
+
+          if( !programScopeUpdated.success ) {
+            throw {
+              message : constants.apiResponses.SCOPE_NOT_UPDATED_IN_PROGRAM
+            }
+          }
+
+        }
+
         return resolve(program);
 
       } catch (error) {
-
         return reject(error);
-
       }
 
     })
@@ -152,5 +177,706 @@ module.exports = class ProgramsHelper {
 
     })
   }
+
+    /**
+   * set scope in program
+   * @method
+   * @name setScope
+   * @param {String} programId - program id.
+   * @param {Object} scopeData - scope data. 
+   * @param {String} scopeData.entityType - entity type
+   * @param {Array} scopeData.entities - entities in scope
+   * @param {Array} scopeData.roles - roles in scope
+   * @returns {JSON} - Set scope data.
+   */
+
+  static setScope( programId,scopeData ) {
+
+    return new Promise(async (resolve, reject) => {
+
+      try {
+
+        let programData = await this.programDocuments({ _id : programId },["_id"]);
+
+        if( !programData.length > 0 ) {
+          return resolve({
+            status : httpStatusCode.bad_request.status,
+            message : constants.apiResponses.PROGRAM_NOT_FOUND
+          });
+        }
+
+        let scope = {};
+
+        if( scopeData.entityType ) {
+          
+          let entityTypeData =  await entityTypesHelper.entityTypesDocument(
+            {
+              name : scopeData.entityType
+            },
+            ["name","_id"]
+          );
+          
+          if( !entityTypeData.length > 0 ) {
+            return resolve({
+              status : httpStatusCode.bad_request.status,
+              message : constants.apiResponses.ENTITY_TYPES_NOT_FOUND
+            });
+          }
+
+          scope["entityType"] = entityTypeData[0].name;
+          scope["entityTypeId"] = entityTypeData[0]._id;
+        }
+
+        if( scopeData.entities && scopeData.entities.length > 0 ) {
+
+          let entities = 
+          await entitiesHelper.entityDocuments(
+            {
+              _id : { $in : scopeData.entities },
+              entityTypeId : scope.entityTypeId
+            },["_id"]
+          );
+          
+          if( !entities.length > 0 ) {
+            return resolve({
+              status : httpStatusCode.bad_request.status,
+              message : constants.apiResponses.ENTITIES_NOT_FOUND
+            });
+          }
+  
+          scope["entities"] = entities.map(entity => {
+            return entity._id;
+          });
+
+        }
+
+        if( scopeData.roles && scopeData.roles.length > 0 ) {
+
+          let userRoles = await userRolesHelper.roleDocuments({
+            code : { $in : scopeData.roles }
+          },["_id","code"]
+          );
+          
+          if( !userRoles.length > 0 ) {
+            return resolve({
+              status : httpStatusCode.bad_request.status,
+              message : constants.apiResponses.INVALID_ROLE_CODE
+            });
+          }
+  
+          scope["roles"] = userRoles;
+
+        }
+
+        let updateProgram = 
+        await database.models.programs.findOneAndUpdate(
+          {
+            _id : programId
+          },
+          { $set : { scope : scope }},{ new: true }
+        ).lean();
+
+        if( !updateProgram._id ) {
+          throw {
+            status : constants.apiResponses.PROGRAM_SCOPE_NOT_ADDED
+          };
+        }
+
+        return resolve({
+          success : true,
+          message : constants.apiResponses.PROGRAM_UPDATED_SUCCESSFULLY,
+          data : updateProgram
+        });
+
+      } catch (error) {
+          return reject(error);
+      }
+
+    })
+  }
+
+   /**
+   * Update program
+   * @method
+   * @name update
+   * @param {String} programId - program id.
+   * @param {Array} data 
+   * @param {String} userId
+   * @returns {JSON} - update program.
+   */
+
+  static update(programId,data,userId) {
+
+    return new Promise( async (resolve, reject) => {
+
+      try {
+
+        data.updatedBy = userId;
+        data.updatedAt = new Date();
+
+        let program = await database.models.programs.findOneAndUpdate({
+          _id : programId
+        },{ $set : _.omit(data,["scope"]) }, { new: true });
+
+        if( !program ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_UPDATED
+          };
+        }
+
+        if( data.scope ) {
+          
+          let programScopeUpdated = await this.setScope(
+            programId,
+            data.scope
+          );
+
+          if( !programScopeUpdated.success ) {
+            throw {
+              message : constants.apiResponses.SCOPE_NOT_UPDATED_IN_PROGRAM
+            }
+          }
+
+        }
+
+        return resolve({
+          success : true,
+          message : constants.apiResponses.PROGRAMS_UPDATED,
+          data : {
+            _id : programId
+          }
+        });
+
+      } catch (error) {
+          return resolve({
+            success : false,
+            message : error.message,
+            data : {}
+          });
+      }
+
+    })
+  }
+
+  /**
+   * List program
+   * @method
+   * @name list
+   * @param {Number} pageNo - page no.
+   * @param {Nmber} pageSize - page size. 
+   * @param {String} searchText - text to search.
+   * @returns {Object} - Programs list. 
+   */
+
+  static list(pageNo,pageSize,searchText,filter = {},projection) {
+
+    return new Promise( async (resolve, reject) => {
+
+      try {
+
+        let programDocument = [];
+
+        let matchQuery = { status : constants.common.ACTIVE };
+
+        if( Object.keys(filter).length > 0 ) {
+          matchQuery = _.merge(matchQuery,filter);
+        }
+
+        if ( searchText !== "" ) {
+          matchQuery["$or"] = [];
+          matchQuery["$or"].push(
+            { 
+              "externalId": new RegExp(searchText, 'i') 
+            }, {
+              "name" : new RegExp(searchText,'i')
+            },{ 
+            "description": new RegExp(searchText, 'i') 
+          });
+        } 
+
+        let projection1 = {};
+
+        if( projection && projection.length > 0 ) {
+
+          projection.forEach(projectedData => {
+            projection1[projectedData] = 1;
+          });
+
+        } else {
+          
+          projection1 = {
+            description : 1,
+            externalId : 1,
+            isAPrivateProgram : 1
+          };
+        }
+
+        let facetQuery = {};
+        facetQuery["$facet"] = {};
+
+        facetQuery["$facet"]["totalCount"] = [
+          { "$count": "count" }
+        ];
+
+        facetQuery["$facet"]["data"] = [
+          { $skip: pageSize * (pageNo - 1) },
+          { $limit: pageSize }
+        ];
+
+        let projection2 = {};
+        projection2["$project"] = {
+          "data": 1,
+          "count": {
+            $arrayElemAt: ["$totalCount.count", 0]
+          }
+        };
+       
+        programDocument.push({ $match : matchQuery }, { $project : projection1 }, facetQuery, projection2);
+       
+        let programDocuments = 
+        await database.models.programs.aggregate(programDocument);
+
+        return resolve({
+          success : true,
+          message : constants.apiResponses.PROGRAM_LIST,
+          data : programDocuments[0]
+        });
+
+      } catch (error) {
+          return resolve({
+            success : false,
+            message : error.message,
+            data : []
+          });
+      }
+
+    })
+  }
+
+    /**
+   * List of programs based on role and location.
+   * @method
+   * @name forUserRoleAndLocation
+   * @param {String} bodyData - Requested body data.
+   * @param {String} pageSize - Page size.
+   * @param {String} pageNo - Page no.
+   * @param {String} searchText - search text.
+   * @returns {JSON} - List of programs based on role and location.
+   */
+
+  static forUserRoleAndLocation( bodyData, pageSize, pageNo,searchText = "" ) {
+
+    return new Promise(async (resolve, reject) => {
+
+      try {
+
+        let queryData = await this.queryBasedOnRoleAndLocation(
+          bodyData
+        );
+
+        if( !queryData.success ) {
+          return resolve(queryData);
+        }
+
+        let targetedPrograms = await this.list(
+          pageNo,
+          pageSize,
+          searchText,
+          queryData.data,
+          ["name", "externalId","components"]
+        );
+             
+        if ( targetedPrograms.success && targetedPrograms.data && targetedPrograms.data.data.length > 0) {
+
+            for ( 
+              let targetedProgram = 0; 
+              targetedProgram < targetedPrograms.data.data.length;
+              targetedProgram ++ 
+            ) {
+              
+              let currentTargetedProgram = targetedPrograms.data.data[targetedProgram];
+
+              if( currentTargetedProgram.components.length > 0 ) {
+                
+                let solutions = await database.models.solutions.find({
+                  _id : { $in : currentTargetedProgram.components },
+                  isDeleted : false,
+                  status : constants.common.ACTIVE
+                },{
+                  _id : 1
+                });
+
+                if( solutions.length > 0 ) {
+                  currentTargetedProgram["solutions"] = solutions.length;
+                  delete currentTargetedProgram.components;
+                }
+
+              }
+            }
+        }
+      
+        return resolve({
+          success: true,
+          message: constants.apiResponses.TARGETED_PROGRAMS_FETCHED,
+          data: targetedPrograms.data
+        });
+
+      } catch (error) {
+
+        return resolve({
+          success : false,
+          message : error.message,
+          data : {}
+        });
+
+      }
+
+    })
+  }
+
+  /**
+   * Query data based on role and location.
+   * @method
+   * @name queryBasedOnRoleAndLocation
+   * @param {Object} data - Requested body data.
+   * @returns {JSON} - Query data based on role and location.
+   */
+
+  static queryBasedOnRoleAndLocation( data ) {
+    return new Promise(async (resolve, reject) => {
+      try {
+
+        let locationIds = 
+        Object.values(_.omit(data,["role","filter"])).map(locationId => {
+          return locationId;
+        });
+
+        let entities = await entitiesHelper.entityDocuments({
+          "registryDetails.locationId" : { $in : locationIds }
+        },["_id"]); 
+
+        if( !entities.length > 0 ) {
+          throw {
+            message : constants.apiResponses.NO_ENTITY_FOUND_IN_LOCATION
+          }
+        }
+
+        let entityIds = entities.map(entity => {
+          return entity._id;
+        });
+
+        let filterQuery = {
+          "scope.roles.code" : data.role,
+          "scope.entities" : { $in : entityIds },
+          "isDeleted" : false,
+          status : constants.common.ACTIVE
+        }
+
+        if( data.filter && Object.keys(data.filter).length > 0 ) {
+
+          Object.keys(data.filter).forEach( filterKey => {
+            
+            if( gen.utils.isValidMongoId(data.filter[filterKey]) ) {
+              data.filter[filterKey] = ObjectId(data.filter[filterKey]);
+            }
+          });
+    
+          filterQuery = _.merge(filterQuery,data.filter);
+        }
+
+        return resolve({
+          success : true,
+          data : filterQuery
+        });
+
+      } catch(error) {
+        return resolve({
+          success : false,
+          status : error.status ? 
+          error.status : httpStatusCode['internal_server_error'].status,
+          message : error.message,
+          data : {}
+        })
+      }
+    })
+  } 
+
+  /**
+   * Add roles in program.
+   * @method
+   * @name addRolesInScope
+   * @param {String} programId - Program Id.
+   * @param {Array} roles - roles data.
+   * @returns {JSON} - Added roles data.
+   */
+
+  static addRolesInScope( programId,roles ) {
+    return new Promise(async (resolve, reject) => {
+      try {
+
+        let programData = 
+        await this.programDocuments({ 
+          _id : programId,
+          scope : { $exists : true },
+          isAPrivateProgram : false 
+        },["_id"]);
+
+        if( !programData.length > 0 ) {
+          return resolve({
+            status : httpStatusCode.bad_request.status,
+            message : constants.apiResponses.PROGRAM_NOT_FOUND
+          });
+        }
+
+        let userRoles = await userRolesHelper.roleDocuments({
+          code : { $in : roles }
+        },["_id","code"]
+        );
+        
+        if( !userRoles.length > 0 ) {
+          return resolve({
+            status : httpStatusCode.bad_request.status,
+            message : constants.apiResponses.INVALID_ROLE_CODE
+          });
+        }
+
+        let updateProgram = await database.models.programs.findOneAndUpdate({
+          _id : programId
+        },{
+          $addToSet : { "scope.roles" : { $each : userRoles } }
+        },{ new : true }).lean();
+
+        if( !updateProgram || !updateProgram._id ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_UPDATED
+          }
+        }
+
+        return resolve({
+          message : constants.apiResponses.ROLES_ADDED_IN_PROGRAM,
+          success : true
+        });
+
+      } catch(error) {
+        return resolve({
+          success : false,
+          status : error.status ? 
+          error.status : httpStatusCode['internal_server_error'].status,
+          message : error.message
+        })
+      }
+    })
+  } 
+
+   /**
+   * Add entities in program.
+   * @method
+   * @name addEntitiesInScope
+   * @param {String} programId - Program Id.
+   * @param {Array} entities - entities data.
+   * @returns {JSON} - Added entities data.
+   */
+
+  static addEntitiesInScope( programId,entities ) {
+    return new Promise(async (resolve, reject) => {
+      try {
+
+        let programData = 
+        await this.programDocuments({ 
+          _id : programId,
+          scope : { $exists : true },
+          isAPrivateProgram : false 
+        },["_id","scope.entityTypeId"]);
+
+        if( !programData.length > 0 ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_FOUND
+          };
+        }
+
+        let entitiesData = 
+        await entitiesHelper.entityDocuments({
+          _id : { $in : entities },
+          entityTypeId : programData[0].scope.entityTypeId
+        },["_id"]);
+          
+        if( !entitiesData.length > 0 ) {
+            throw {
+              message : constants.apiResponses.ENTITIES_NOT_FOUND
+            };
+        }
+
+        let entityIds = [];
+        
+        entitiesData.forEach(entity => {
+          entityIds.push(entity._id);
+        });
+
+        let updateProgram = await database.models.programs.findOneAndUpdate({
+          _id : programId
+        },{
+          $addToSet : { "scope.entities" : { $each : entityIds } }
+        },{ new : true }).lean();
+
+        if( !updateProgram || !updateProgram._id ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_UPDATED
+          }
+        }
+
+        return resolve({
+          message : constants.apiResponses.ENTITIES_ADDED_IN_PROGRAM,
+          success : true
+        });
+
+      } catch(error) {
+        return resolve({
+          success : false,
+          status : error.status ? 
+          error.status : httpStatusCode['internal_server_error'].status,
+          message : error.message
+        })
+      }
+    })
+  } 
+
+   /**
+   * remove roles in program.
+   * @method
+   * @name removeRolesInScope
+   * @param {String} programId - Program Id.
+   * @param {Array} roles - roles data.
+   * @returns {JSON} - Added roles data.
+   */
+
+  static removeRolesInScope( programId,roles ) {
+    return new Promise(async (resolve, reject) => {
+      try {
+
+        let programData = 
+        await this.programDocuments({ 
+          _id : programId,
+          scope : { $exists : true },
+          isAPrivateProgram : false 
+        },["_id"]);
+
+        if( !programData.length > 0 ) {
+          return resolve({
+            status : httpStatusCode.bad_request.status,
+            message : constants.apiResponses.PROGRAM_NOT_FOUND
+          });
+        }
+
+        let userRoles = await userRolesHelper.roleDocuments({
+          code : { $in : roles }
+        },["_id","code"]
+        );
+        
+        if( !userRoles.length > 0 ) {
+          return resolve({
+            status : httpStatusCode.bad_request.status,
+            message : constants.apiResponses.INVALID_ROLE_CODE
+          });
+        }
+
+        let updateProgram = await database.models.programs.findOneAndUpdate({
+          _id : programId
+        },{
+          $pull : { "scope.roles" : { $in : userRoles } }
+        },{ new : true }).lean();
+
+        if( !updateProgram || !updateProgram._id ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_UPDATED
+          }
+        }
+
+        return resolve({
+          message : constants.apiResponses.ROLES_REMOVED_IN_PROGRAM,
+          success : true
+        });
+
+      } catch(error) {
+        return resolve({
+          success : false,
+          status : error.status ? 
+          error.status : httpStatusCode['internal_server_error'].status,
+          message : error.message
+        })
+      }
+    })
+  } 
+
+   /**
+   * remove entities in program scope.
+   * @method
+   * @name removeEntitiesInScope
+   * @param {String} programId - Program Id.
+   * @param {Array} entities - entities.
+   * @returns {JSON} - Removed entities data.
+   */
+
+  static removeEntitiesInScope( programId,entities ) {
+    return new Promise(async (resolve, reject) => {
+      try {
+
+        let programData = 
+        await this.programDocuments({ 
+          _id : programId,
+          scope : { $exists : true },
+          isAPrivateProgram : false 
+        },["_id","scope.entityTypeId"]);
+
+        if( !programData.length > 0 ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_FOUND
+          };
+        }
+
+        let entitiesData = 
+        await entitiesHelper.entityDocuments({
+          _id : { $in : entities },
+          entityTypeId : programData[0].scope.entityTypeId
+        },["_id"]);
+          
+        if( !entitiesData.length > 0 ) {
+            throw {
+              message : constants.apiResponses.ENTITIES_NOT_FOUND
+            };
+        }
+
+        let entityIds = [];
+        
+        entitiesData.forEach(entity => {
+          entityIds.push(entity._id);
+        });
+
+        let updateProgram = await database.models.programs.findOneAndUpdate({
+          _id : programId
+        },{
+          $pull : { "scope.entities" : { $in : entityIds } }
+        },{ new : true }).lean();
+
+        if( !updateProgram || !updateProgram._id ) {
+          throw {
+            message : constants.apiResponses.PROGRAM_NOT_UPDATED
+          }
+        }
+
+        return resolve({
+          message : constants.apiResponses.ENTITIES_REMOVED_IN_PROGRAM,
+          success : true
+        });
+
+      } catch(error) {
+        return resolve({
+          success : false,
+          status : error.status ? 
+          error.status : httpStatusCode['internal_server_error'].status,
+          message : error.message
+        })
+      }
+    })
+  } 
 
 };

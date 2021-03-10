@@ -591,5 +591,237 @@ module.exports = class Users extends Abstract {
       }
     });
   }
+
+   /**
+  * @api {post} /kendra/api/v1/users/solutions/:programId?page=:page&limit=:limit&search=:searchText
+  * @apiVersion 1.0.0
+  * @apiName User solutions
+  * @apiGroup Users
+  * @apiHeader {String} internal-access-token Internal access token
+  * @apiHeader {String} X-authenticated-user-token Authenticity token
+  * @apiSampleRequest /kendra/api/v1/users/solutions/5ff438b04698083dbfab7284?page=1&limit=10
+  * @apiParamExample {json} Request-Body:
+  * {
+        "role" : "HM",
+   		"state" : "236f5cff-c9af-4366-b0b6-253a1789766a",
+        "district" : "1dcbc362-ec4c-4559-9081-e0c2864c2931",
+        "school" : "c5726207-4f9f-4f45-91f1-3e9e8e84d824"
+    }
+  * @apiUse successBody
+  * @apiUse errorBody
+  * @apiParamExample {json} Response:
+  * {
+    "message": "Program solutions fetched successfully",
+    "status": 200,
+    "result": {
+        "data": [
+            {
+                "_id": "5fc3dff14ea9b44f3340afe2",
+                "type": "improvementProject",
+                "externalId": "f449823a-06bb-4a3f-9d49-edbe1524ebbb-1606672337956",
+                "projectTemplateId": "5ff4a46aa87a5c721f9eb664"
+            },
+            {
+                "_id": "5ff482737f768d2de902e912",
+                "externalId": "SCOPE_OBSERVATION_TEST",
+                "name": "observation testing",
+                "description": "Testing observation",
+                "type": "observation"
+            },
+            {
+                "_id": "5f7dc24543b6eb39bb0c6b95",
+                "type": "survey",
+                "name": "survey and feedback solution",
+                "externalId": "d499f27c-08a0-11eb-b97f-4201ac1f0004-1602077253905",
+                "description": "test survey and feedback solution"
+            }
+        ],
+        "count": 3,
+        "programName": "TEST_SCOPE_PROGRAM",
+        "programId": "5ff438b04698083dbfab7284",
+        "description": "View and participate in educational programs active in your location and designed for your role."
+    }}
+  **/
+
+  /**
+  * User targeted solutions.
+  * @method
+  * @name solutions
+  * @param  {req}  - requested data.
+  * @returns {json} List of targeted solutions.
+  */
+
+ solutions(req) {
+    return new Promise(async (resolve, reject) => {
+      try {
+
+        let targetedSolutions = await usersHelper.solutions(
+            req.params._id,
+            req.body,
+            req.pageSize,
+            req.pageNo,
+            req.searchText
+        );
+
+        targetedSolutions["result"] = targetedSolutions.data;
+        return resolve(targetedSolutions);
+
+      } catch (error) {
+
+        return reject({
+            status: 
+            error.status || 
+            httpStatusCode["internal_server_error"].status,
+
+            message: 
+            error.message || 
+            httpStatusCode["internal_server_error"].message
+        })
+
+      }
+    });
+  }
+
+
+/**
+     * @api {post} /kendra/api/v1/users/programs?page=:page&limit=:limit&search=:search 
+     * Program List
+     * @apiVersion 1.0.0
+     * @apiGroup Users
+     * @apiHeader {String} X-authenticated-user-token Authenticity token
+     * @apiSampleRequest /kendra/api/v1/users/programs?page=:page&limit=:limit&search=:search 
+     * @apiUse successBody
+     * @apiUse errorBody
+     * @apiParamExample {json} Request:
+     * {
+        "role" : "HM",
+        "state" : "236f5cff-c9af-4366-b0b6-253a1789766a",
+        "district" : "1dcbc362-ec4c-4559-9081-e0c2864c2931",
+        "school" : "c5726207-4f9f-4f45-91f1-3e9e8e84d824"
+      }
+      * @apiParamExample {json} Response:
+      * {
+      * "message": "Users programs fetched successfully",
+        "status": 200,
+        "result": {
+            "data": [
+                {
+                    "_id": "5ff438b04698083dbfab7284",
+                    "externalId": "TEST_SCOPE_PROGRAM",
+                    "name": "TEST scope in program",
+                    "solutions": 16
+                }
+            ],
+            "count": 1,
+            "description": "View and participate in educational programs active in your location and designed for your role"
+        }
+    }
+    */
+
+    /**
+      * List of targeted user programs
+      * @method
+      * @name programs
+      * @param  {Request} req request body.
+      * @param {String} req.pageNo - pageNo
+      * @param {String} req.pageSize - pageSize
+      * @param {String} req.searchText - searchText
+      * @returns {Object} list of targeted user programs. 
+     */
+
+    programs(req) {
+      return new Promise(async (resolve, reject) => {
+
+        try {
+          
+          let programs = 
+          await usersHelper.programs( 
+              req.body,
+              req.pageNo,
+              req.pageSize,
+              req.searchText
+          );
+
+          programs.result = programs.data;
+         
+          return resolve(programs);
+
+        } catch (error) {
+
+            return reject({
+                status: 
+                error.status || 
+                httpStatusCode["internal_server_error"].status,
+
+                message: 
+                error.message || 
+                httpStatusCode["internal_server_error"].message
+            })
+
+        }
+
+      })
+    }
+
+       /**
+     * @api {get} /kendra/api/v1/users/entityTypesByLocationAndRole/:stateLocationId?role=:role
+     * List of entity type by location and role.
+     * @apiVersion 1.0.0
+     * @apiGroup Users
+     * @apiHeader {String} X-authenticated-user-token Authenticity token
+     * @apiSampleRequest /kendra/api/v1/users/entityTypesByLocationAndRole/5ca3abc3-7a0b-4d36-a090-37509903c96d?role=DEO
+     * @apiUse successBody
+     * @apiUse errorBody
+     * @apiParamExample {json} Response:
+     * {
+     * "message": "Entity types fetched successfully",
+     * "status": 200,
+     * "result": [
+        "district",
+        "block",
+        "cluster"
+    ]}
+    */
+
+    /**
+      * Lists of entity types based on location and role.
+      * @method
+      * @name entityTypesByLocationAndRole
+      * @param  {Request} req request body.
+      * @returns {JSON} List of entiites mapping form.
+     */
+
+    entityTypesByLocationAndRole(req) {
+
+        return new Promise(async (resolve, reject) => {
+
+            try {
+
+                const entitiesMappingData = 
+                await usersHelper.entityTypesByLocationAndRole(
+                    req.params._id,
+                    req.query.role
+                );
+
+                entitiesMappingData["result"] = entitiesMappingData.data;
+                resolve(entitiesMappingData);
+
+            } catch (error) {
+
+                return reject({
+                    status: 
+                    error.status || 
+                    httpStatusCode["internal_server_error"].status,
+
+                    message: 
+                    error.message || 
+                    httpStatusCode["internal_server_error"].message
+                })
+
+            }
+
+
+        })
+    }
 };
 

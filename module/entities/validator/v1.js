@@ -23,9 +23,7 @@ module.exports = (req) => {
         subEntityTypeList : function () {
             req.checkParams('_id')
             .exists()
-            .withMessage("required Entity id")
-            .isMongoId()
-            .withMessage("Invalid entity id");
+            .withMessage("required Entity id");
         },
         getUsersByEntityAndRole: function () {
             req.checkParams('_id').exists().withMessage("required entity id")

@@ -1,3 +1,5 @@
+const { query } = require("express-validator/check");
+
 const entityTypesHelper = require(MODULES_BASE_PATH + "/entityTypes/helper");
 const userRolesHelper = require(MODULES_BASE_PATH + "/user-roles/helper");
 const elasticSearch = require(GENERIC_HELPERS_PATH + "/elastic-search");
@@ -33,6 +35,10 @@ module.exports = class EntitiesHelper {
                 
                 if (findQuery != "all") {
                     queryObject = findQuery;
+                    if( queryObject._id && typeof queryObject._id != "object" && !gen.utils.isValidMongoId(queryObject._id.toString()) ) {
+                        queryObject["registryDetails.locationId"] = queryObject._id;
+                        delete queryObject._id
+                    }
                 }
                 
                 let projectionObject = {};
@@ -182,7 +188,8 @@ module.exports = class EntitiesHelper {
                     {
                         $project: {
                             name: "$metaInformation.name",
-                            externalId: "$metaInformation.externalId"
+                            externalId: "$metaInformation.externalId",
+                            locationId : "$registryDetails.locationId"
                         }
                     }
                 ];
@@ -812,6 +819,5 @@ module.exports = class EntitiesHelper {
         }
     })
   }
-
 
 }

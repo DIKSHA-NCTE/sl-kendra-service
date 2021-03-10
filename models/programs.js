@@ -23,6 +23,25 @@ module.exports = {
       rootOrganisations : {
         type : [String],
         default : []
+      },
+      scope : {
+        entityType : String,
+        entityTypeId : "ObjectId",
+        entities : {
+          type : Array,
+          index : true
+        },
+        roles : [{
+          _id : "ObjectId",
+          code : {
+            type : String,
+            index : true
+          }
+        }]
+      },
+      isDeleted: {
+        default : false,
+        type : Boolean
       }
     }
   };

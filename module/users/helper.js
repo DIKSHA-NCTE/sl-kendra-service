@@ -10,10 +10,6 @@
 const programsHelper = require(MODULES_BASE_PATH + "/programs/helper");
 const solutionsHelper = require(MODULES_BASE_PATH + "/solutions/helper");
 const sunbirdService = require(ROOT_PATH + "/generics/services/sunbird");
-
-
-// Dependencies 
-
 const userRolesHelper = require(MODULES_BASE_PATH + "/user-roles/helper");
 const entitiesHelper = require(MODULES_BASE_PATH + "/entities/helper");
 
@@ -104,7 +100,6 @@ module.exports = class UsersHelper {
             }
         })
     }
-
 
     /**
   * List of all private programs created by user
@@ -349,6 +344,7 @@ module.exports = class UsersHelper {
             }
         })
     }
+
     /**
       * Entities mapping form data.
       * @method
@@ -395,7 +391,7 @@ module.exports = class UsersHelper {
                 })
 
                 let entityTypeIndex =
-                    entitiesData[0].childHierarchyPath.findIndex(path => path === roleEntityType);
+                entitiesData[0].childHierarchyPath.findIndex(path => path === roleEntityType);
 
                 let form = {
                     "field": "",
@@ -489,6 +485,187 @@ module.exports = class UsersHelper {
                 }
             } catch (error) {
                 return reject(error);
+            }
+        })
+    }
+
+      /**
+      * User targeted solutions.
+      * @method
+      * @name solutions
+      * @param {String} programId - program id.
+      * @param {Object} requestedData requested data.
+      * @param {String} pageSize page size.
+      * @param {String} pageNo page no.
+      * @param {String} search search text.
+      * @returns {Object} targeted user solutions.
+     */
+
+    static solutions( programId,requestedData,pageSize,pageNo,search ) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                
+                let autoTargetedSolutions = 
+                await solutionsHelper.forUserRoleAndLocation(
+                    requestedData,
+                    "",
+                    "",
+                    programId,
+                    pageSize,
+                    pageNo,
+                    search
+                );
+
+                if( autoTargetedSolutions.data.data && autoTargetedSolutions.data.data.length > 0 ) {
+                    autoTargetedSolutions.data["programName"] = autoTargetedSolutions.data.data[0].programName;
+                    autoTargetedSolutions.data["programId"] = autoTargetedSolutions.data.data[0].programId;
+
+                    autoTargetedSolutions.data.data = 
+                    autoTargetedSolutions.data.data.map( targetedData => {
+                        delete targetedData.programId;
+                        delete targetedData.programName;
+                        return targetedData;
+                    });
+                }
+
+                autoTargetedSolutions.data["description"] = constants.common.TARGETED_SOLUTION_TEXT;
+
+                return resolve({
+                    message : constants.apiResponses.PROGRAM_SOLUTIONS_FETCHED,
+                    success : true,
+                    data : autoTargetedSolutions.data
+                })
+            } catch (error) {
+                return resolve({
+                    success : false,
+                    data : {
+                        description : constants.common.TARGETED_SOLUTION_TEXT,
+                        data : [],
+                        count : 0
+                    }
+                })
+            }
+        })
+    }
+
+    /**
+    * User targeted programs.
+    * @method
+    * @name programs
+    * @param {Object} bodyData - request body data.
+    * @param {String} pageNo - Page number.
+    * @param {String} pageSize - Page size.
+    * @param {String} searchText - Search text.
+    * @returns {Array} - Get user targeted programs.
+    */
+
+   static programs(bodyData, pageNo, pageSize,searchText) {
+       return new Promise(async (resolve, reject) => {
+            try {
+
+                let targetedProgrms = await programsHelper.forUserRoleAndLocation(
+                    bodyData,
+                    pageSize,
+                    pageNo,
+                    searchText
+                );
+
+                if (!targetedProgrms.success) {
+                    throw {
+                        message : constants.apiResponses.PROGRAM_NOT_FOUND
+                    }
+                }
+                    
+                targetedProgrms.data["description"] = constants.apiResponses.PROGRAM_DESCRIPTION;
+
+                return resolve({
+                    success: true,
+                    message: constants.apiResponses.USER_TARGETED_PROGRAMS_FETCHED,
+                    data : targetedProgrms.data
+                });
+
+            } catch (error) {
+                return resolve({
+                    success: false,
+                    message: error.message,
+                    data : {
+                        description : constants.common.TARGETED_SOLUTION_TEXT,
+                        data : [],
+                        count : 0
+                    }
+                });
+            }
+        })
+    }
+
+      /**
+      * List of entity types by location and role.
+      * @method
+      * @name entityTypesByLocationAndRole
+      * @param {String} stateLocationId - state location id.
+      * @param {String} role - role.
+      * @returns {Object} returns a list of entity type by location and role.
+     */
+
+    static entityTypesByLocationAndRole(stateLocationId, role) {
+        return new Promise(async (resolve, reject) => {
+            try {
+
+                const entitiesData = await entitiesHelper.entityDocuments({
+                    "registryDetails.locationId" : stateLocationId
+                }, ["_id"]);
+
+                if (!entitiesData.length > 0) {
+                    throw {
+                        message: constants.apiResponses.ENTITIES_NOT_EXIST_IN_LOCATION
+                    }
+                }
+
+                const rolesDocument = await userRolesHelper.roleDocuments({
+                    code : role.toUpperCase()
+                },["_id","entityTypes.entityType"]);
+
+                if (!rolesDocument.length > 0) {
+                    throw {
+                        message: constants.apiResponses.USER_ROLES_NOT_FOUND
+                    }
+                }
+
+                let entityTypes = [];
+                let stateEntityExists = false;
+
+                rolesDocument[0].entityTypes.forEach( roleDocument => {
+                    if( roleDocument.entityType === constants.common.STATE_ENTITY_TYPE ) {
+                        stateEntityExists = true;
+                    }
+                });
+
+                if( stateEntityExists ) {
+                    entityTypes = [constants.common.STATE_ENTITY_TYPE]
+                } else {
+                    
+                    let entitiesMappingForm = 
+                    await this.entitiesMappingForm(
+                        entitiesData[0]._id,
+                        rolesDocument[0]._id
+                    );
+
+                    entitiesMappingForm.result.forEach( entitiesMappingData => {
+                        entityTypes.push(entitiesMappingData.field)
+                    });
+                }
+
+                return resolve({
+                    success : true,
+                    message : constants.apiResponses.ENTITY_TYPES_FETCHED,
+                    data : entityTypes
+                });
+
+            } catch (error) {
+                return resolve({
+                    success : false,
+                    message : error.message
+                });
             }
         })
     }
