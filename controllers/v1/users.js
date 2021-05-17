@@ -164,7 +164,7 @@ module.exports = class Users extends Abstract {
             "_id": "5edf0d14c57dab7f639f3e0d",
             "externalId": "EF-DCPCR-2018-001-TEMPLATE-2020-06-09 09:46:20",
             "name": "My program",
-            "description": "DCPCR Assessment Framework 2018",
+            "description": "DCPCR Assessment Frramework 2018",
             "isAPrivateProgram" : false
         }
      ]}
@@ -683,14 +683,13 @@ module.exports = class Users extends Abstract {
     });
   }
 
-
 /**
      * @api {post} /kendra/api/v1/users/programs?page=:page&limit=:limit&search=:search 
      * Program List
      * @apiVersion 1.0.0
      * @apiGroup Users
      * @apiHeader {String} X-authenticated-user-token Authenticity token
-     * @apiSampleRequest /kendra/api/v1/users/programs?page=:page&limit=:limit&search=:search 
+     * @apiSampleRequest /kendra/api/v1/users/programs?isAPrivateProgram=true&page=:page&limit=:limit&search=:search 
      * @apiUse successBody
      * @apiUse errorBody
      * @apiParamExample {json} Request:
@@ -727,6 +726,7 @@ module.exports = class Users extends Abstract {
       * @param {String} req.pageNo - pageNo
       * @param {String} req.pageSize - pageSize
       * @param {String} req.searchText - searchText
+      * @param {String} req.query.isAPrivateProgram - isAPrivateProgram
       * @returns {Object} list of targeted user programs. 
      */
 
@@ -734,19 +734,29 @@ module.exports = class Users extends Abstract {
       return new Promise(async (resolve, reject) => {
 
         try {
+
+          let isAPrivateProgram = gen.utils.convertStringToBoolean(req.query.isAPrivateProgram);
+
+          if(isAPrivateProgram){
+
+            let programsData = await usersHelper.privatePrograms(req.userDetails.userId);
+            return resolve(programsData);
+
+          } else {
+            
+            let programs = 
+              await usersHelper.programs( 
+                  req.body,
+                  req.pageNo,
+                  req.pageSize,
+                  req.searchText
+              );
+
+              programs.result = programs.data;
+              return resolve(programs);
+
+          }
           
-          let programs = 
-          await usersHelper.programs( 
-              req.body,
-              req.pageNo,
-              req.pageSize,
-              req.searchText
-          );
-
-          programs.result = programs.data;
-         
-          return resolve(programs);
-
         } catch (error) {
 
             return reject({

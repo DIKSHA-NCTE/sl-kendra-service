@@ -532,7 +532,7 @@ module.exports = class UserExtensionHelper {
                     delete requestedData.roles[pointerToRole]._id;
                 }
 
-                if (!userExtensionData) {
+                if (!userExtensionData[0]) {
                     
                     requestedData.userId = userId;
                     requestedData.createdBy =
@@ -651,11 +651,7 @@ module.exports = class UserExtensionHelper {
                 if (!userExtensionData.length > 0) {
                     return resolve({
                         message: constants.apiResponses.USER_EXTENSION_NOT_FOUND,
-                        result : {
-                            "_id" : "",
-                            "externalId" : "",
-                            "roles" : []
-                        }
+                        result : {}
                     });
                 }
 

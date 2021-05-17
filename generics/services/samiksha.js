@@ -277,7 +277,7 @@ var assignedObservations = function ( token,search = "",filter = "" ) {
   * @returns {Promise} returns a promise.
 */
 
-var assignedSurveys = function ( token,search = "",filter = "" ) {
+var assignedSurveys = function ( token,search = "",filter = "", surveyReportPage = "" ) {
 
     let userAssignedUrl = 
     process.env.ASSESSMENT_SERVICE_HOST +
@@ -286,6 +286,10 @@ var assignedSurveys = function ( token,search = "",filter = "" ) {
 
     if( filter !== "" ) {
         userAssignedUrl = userAssignedUrl + "&filter=" + filter;
+    } 
+
+    if( surveyReportPage !== "" ) {
+        userAssignedUrl = userAssignedUrl + "&surveyReportPage=" + surveyReportPage;
     } 
     
     return new Promise(async (resolve, reject) => {

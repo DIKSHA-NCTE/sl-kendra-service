@@ -27,12 +27,12 @@ let db_connect = function (configData) {
   * @param {Object} cassandraConfigurationData  - configuration data for cassandra.
 */
 
-// let cassandra_connect = function (cassandraConfigurationData) {
-//   global.cassandraDatabase = require("./db/cassandra")(cassandraConfigurationData);
-//   if( !global.Abstract ){
-//     global.Abstract = require(process.env.PATH_TO_ABSTRACT_FILE);
-//   }
-// };
+let cassandra_connect = function (cassandraConfigurationData) {
+  global.cassandraDatabase = require("./db/cassandra")(cassandraConfigurationData);
+  if( !global.Abstract ){
+    global.Abstract = require(process.env.PATH_TO_ABSTRACT_FILE);
+  }
+};
 
 /**
   * kafka configuration.
@@ -147,7 +147,7 @@ const configuration = {
 
 db_connect(configuration);
 
-// cassandra_connect(configuration.db.connection.cassandra);
+cassandra_connect(configuration.db.connection.cassandra);
 
 kafka_connect(configuration);
 
